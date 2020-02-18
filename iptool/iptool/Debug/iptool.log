@@ -1,0 +1,6 @@
+﻿  iptool.cpp
+c:\users\tf930\desktop\usf\testcode\iptool\iptool\iptool.cpp(66): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\users\tf930\desktop\usf\testcode\iptool\iptool\iptool.cpp(35): warning C4101: 'next_pch': unreferenced local variable
+c:\users\tf930\desktop\usf\testcode\iptool\iptool\iptool.cpp(35): warning C4101: 'pch': unreferenced local variable
+  iptool.vcxproj -> C:\Users\tf930\Desktop\USF\testcode\iptool\Debug\iptool.exe
+  iptool.vcxproj -> C:\Users\tf930\Desktop\USF\testcode\iptool\Debug\iptool.pdb (Full PDB)
