@@ -18,6 +18,10 @@ class utility
 		static void doubleThreshold(image &src, image &tgt);
 		static void colorBinarize(image &src, image &tgt);
 		static void uniformSmooth(image &src, image &tgt, int smoothType);
+		static void grayHistoStretch(image &src, image &tgt);
+		static void optimalThreshGray(image &src, image &tgt, int a, int b);
+		//-->Combo function here
+		static void colorHistogramStretch(image &src, image &tgt, int a, int b);
 };
 
 #endif
