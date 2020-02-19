@@ -46,7 +46,7 @@ int main (int argc, char** argv)
 			utility::binarize(src,tgt,atoi(str));
 		}
 
-		else if (strncmp(str,"scale",5)==0) {
+		else if (strncmp(str,"scale", 5)==0) {
 			/* Image scaling */
 			fp >> str;
 			utility::scale(src,tgt,atof(str));
@@ -71,6 +71,13 @@ int main (int argc, char** argv)
 			fp >> str;
 			utility::uniformSmooth(src, tgt, atof(str)); //Src image, target, type of smoothing
 			std::cout << "Uniform smoothing algorithm complete." << std::endl;
+		}
+
+		else if (strncmp(str, "grayHistStretch", 15) == 0) {
+			/* Histogram Stretching */
+			fp >> str;
+			utility::grayHistoStretch(src, tgt);
+			std::cout << "Gray Histogram Stretching algorithm complete." << std::endl;
 		}
 
 		else {

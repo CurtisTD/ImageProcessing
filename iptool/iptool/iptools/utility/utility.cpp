@@ -1,6 +1,7 @@
 #include "utility.h"
 #include <fstream>
 #include <iostream>
+#include <map>
 
 
 #define MAXRGB 255
@@ -287,4 +288,146 @@ void utility::uniformSmooth(image &src, image &tgt, int smoothType) {
 			std::cout << "Not a valid smoothing type for this call." << std::endl;
 		}
 	}
+}
+
+
+/*-----------------------------------------------------------------------**/
+/*Helper function for getting intensity*/
+double getIntensity(image &src, int x, int y) {
+	double red_ch, green_ch, blue_ch;
+
+	red_ch = src.getPixel(x, y, RED);
+	green_ch = src.getPixel(x, y, GREEN);
+	blue_ch = src.getPixel(x, y, BLUE);
+
+	return (red_ch + green_ch + blue_ch) / (3 * 255); //Intensity calculation [0,1]
+	
+}
+/*Helper function to generate a hisotgram*/
+void createHistogram(image &src, int startX, int endX, int startY, int endY, int iteration, bool beforeAfter) {
+
+	std::map<double, int> intensityCounts;
+
+	int x = startX;
+	int y = startY;
+	double pixelIntensity;
+	//Traverse the given ROI parameters
+	for (x = 0; x < endX; x++) {
+		for (y = 0; y < endY; y++) {
+			
+			pixelIntensity = getIntensity(src, x, y);
+
+			++intensityCounts[pixelIntensity]; //Increments the count of a pixel value
+		}
+	}
+
+	image histogram;
+	histogram.resize(256, 256);
+
+	//Creates a new file name
+	char fileName[256];
+	char stringIteration[256];
+	
+	strcpy_s(fileName, 256, "../output/");
+	//True = before
+	if (beforeAfter) {
+		strcat_s(fileName, 256, "ImgBefore");
+	}
+	else {
+		strcat_s(fileName, 256, "ImgAfter");
+	}
+	strcat_s(fileName, 256, "_Histogram-ROI");
+	sprintf_s(stringIteration, "%d", iteration);
+	strcat_s(fileName, 256, stringIteration);
+	strcat_s(fileName, 256, ".pgm");
+
+	//Traverse the count of pixels and print them to the image
+	using iterator = std::map<double, int>::iterator;
+	for (iterator iter = intensityCounts.begin(); iter != intensityCounts.end(); ++iter) {
+		std::cout << iter->first << ": " << iter->second << '\n';
+		int colSize = iter->second;
+		if (colSize > 255) { colSize = 255; }
+		//From 0 to number of 
+		for (int i = 0; i < colSize; i++) {
+			//At column number (x)
+			int x = iter->first * 255;
+
+			histogram.setPixel(255-i, x, 255);
+		}
+
+	}
+
+	histogram.save(fileName);
+	
+}
+/*Main Gray Histogram Stretch*/
+void utility::grayHistoStretch(image &src, image &tgt) {
+
+	/* Opens the Histogram Stretch ROI file to get the regions & params */
+	ifstream ghsROIFile("../input/ROIGrayHistoStretch.txt");
+	if (!ghsROIFile.is_open()) {
+		fprintf(stderr, "Can't open Histogram Stretch ROI file:\n");
+	}
+	int numROI; //number of doubleThreshold ROIs	
+	ghsROIFile >> numROI;
+
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	//For the number of ROIs, do the operation on the image
+	for (int i = 0; i < numROI; i++) {
+
+		int ghsX, ghsY, ghsSX, ghsSY, givenMin, givenMax; //Parameters of ROIs for operations
+		ghsROIFile >> ghsX >> ghsY >> ghsSX >> ghsSY >> givenMin >> givenMax;
+
+		double intensity = 0;
+		double maxIntensity = getIntensity(src, 0, 0); //Set random initial values
+		double minIntensity = getIntensity(src, 1, 1);
+
+		/**Generate Histogram of ROI before (the source image ROI)**/
+		createHistogram(src, ghsX, (ghsX + ghsSX), ghsY, (ghsY + ghsSY), i, 1);
+		
+		//First traversal of image to get min/max values
+		for (int x = ghsX; x < (ghsX + ghsSX); x++) {
+			for (int y = ghsY; y < (ghsY + ghsSY); y++) {
+				intensity = getIntensity(src, x, y);
+
+				//Gets max Intensity
+				if (intensity > maxIntensity) {
+					maxIntensity = intensity;
+				}
+				//Gets min Intensity
+				if (intensity < minIntensity) {
+					minIntensity = intensity;
+				}
+			}
+		}		
+
+		//Second traversal of image to set new intensities
+		int newIntensity;
+		for (int x = ghsX; x < (ghsX + ghsSX); x++) {
+			for (int y = ghsY; y < (ghsY + ghsSY); y++) {
+				//New intensity calculation
+				newIntensity = ( (getIntensity(src, x, y) - minIntensity) / (maxIntensity - minIntensity) ) * 255;
+				//Set new value
+				tgt.setPixel(x, y, newIntensity); 
+			}
+		}
+
+		/**Generate Histogram of ROI after (the target image)**/
+		std::cout << "*********ROI #" << i << "************\n";
+		createHistogram(tgt, ghsX, (ghsX + ghsSX), ghsY, (ghsY + ghsSY), i, 0);
+	}
+}
+
+/*-----------------------------------------------------------------------**/
+void utility::optimalThreshGray(image &src, image &tgt, int a, int b) {
+
+}
+
+/*-----------------------------------------------------------------------**/
+void colorHistogramStretch(image &src, image &tgt, int a, int b) {
+
+
 }
