@@ -76,8 +76,22 @@ int main (int argc, char** argv)
 		else if (strncmp(str, "grayHistStretch", 15) == 0) {
 			/* Histogram Stretching */
 			fp >> str;
-			utility::grayHistoStretch(src, tgt);
+			utility::grayHistoStretch(src, tgt, outfile);
 			std::cout << "Gray Histogram Stretching algorithm complete." << std::endl;
+		}
+
+		else if (strncmp(str, "optThreshGray", 13) == 0) {
+			/* Optimal Thresholding of Gray Image */
+			fp >> str;
+			utility::optimalThreshGray(src, tgt);
+			std::cout << "Optimal Thresholding of Gray Image algorithm complete." << std::endl;
+		}
+
+		else if (strncmp(str, "optThHisto", 10) == 0) {
+			/* Optimal Thresholding of Gray Image combined with Histogram Stretching */
+			fp >> str;
+			utility::optimalThresh_HistoStretch(src, tgt);
+			std::cout << "Optimal Thresholding of Gray Image combined with Histogram stretching algorithm complete." << std::endl;
 		}
 
 		else {

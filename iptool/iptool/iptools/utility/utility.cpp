@@ -304,7 +304,7 @@ double getColorIntensity(image &src, int x, int y) {
 	
 }
 /*Helper function to generate a hisotgram*/
-void createHistogram(image &src, int startX, int endX, int startY, int endY, int iteration, bool beforeAfter) {
+void createHistogram(image &src, int startX, int endX, int startY, int endY, int iteration, bool beforeAfter, char outfile[]) {
 
 	int pixelIntensityCounts[256];
 
@@ -342,8 +342,10 @@ void createHistogram(image &src, int startX, int endX, int startY, int endY, int
 	char fileName[256];
 	char stringIteration[256];
 	
+	//Create an output file for the histogram, named as a histogram by ROI
 	strcpy_s(fileName, 256, "../output/");
 	//True = before
+	strcat_s(fileName, 256, outfile);
 	if (beforeAfter) {
 		strcat_s(fileName, 256, "ImgBefore");
 	}
@@ -365,7 +367,7 @@ void createHistogram(image &src, int startX, int endX, int startY, int endY, int
 	histogram.save(fileName); //Save output histogram
 }
 /*Main Gray Histogram Stretch*/
-void utility::grayHistoStretch(image &src, image &tgt) {
+void utility::grayHistoStretch(image &src, image &tgt, char outfile[]) {
 
 	/* Opens the Histogram Stretch ROI file to get the regions & params */
 	ifstream ghsROIFile("../input/ROIGrayHistoStretch.txt");
@@ -407,7 +409,7 @@ void utility::grayHistoStretch(image &src, image &tgt) {
 		}	
 
 		/**Generate Histogram of ROI before (the source image ROI)**/
-		createHistogram(src, ghsX, (ghsX + ghsSX), ghsY, (ghsY + ghsSY), i, 1);
+		createHistogram(src, ghsX, (ghsX + ghsSX), ghsY, (ghsY + ghsSY), i, 1, outfile);
 
 		//Traversal to get new intensities
 		int newIntensity;
@@ -432,18 +434,272 @@ void utility::grayHistoStretch(image &src, image &tgt) {
 		}
 
 		/**Generate Histogram of ROI after (the target image)**/
-		std::cout << "*********After Histo of ROI #" << i << "************\n";
-		createHistogram(tgt, ghsX, (ghsX + ghsSX), ghsY, (ghsY + ghsSY), i, 0);
+		createHistogram(tgt, ghsX, (ghsX + ghsSX), ghsY, (ghsY + ghsSY), i, 0, outfile);
+	}
+
+	//End of GrayHistoStretch function
+}
+
+/*-----------------------------------------------------------------------**/
+void utility::optimalThreshGray(image &src, image &tgt) {
+	
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream otgROIFile("../input/ROIOptimalThresh.txt");
+	if (!otgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Optimal Thresh Gray Image ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	otgROIFile >> numROI;
+
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	
+	//For the number of ROIs, do the operation on the image
+	for (int i = 0; i < numROI; i++) {
+		//Vars used to calculate avg value of original image -> Initial threshold value
+		int sumValue = 0;
+		int avgValue = 0;
+
+		int otgX, otgY, otgSX, otgSY; //Parameters of ROIs for operations
+		otgROIFile >> otgX >> otgY >> otgSX >> otgSY;
+
+		int count = 0;
+		//For the ROI, find avg value
+		for (int x = otgX; x < (otgX + otgSX); x++) {
+			for (int y = otgY; y < (otgY + otgSY); y++) {
+				sumValue += tgt.getPixel(x, y);
+				count++;
+			}
+		}
+		avgValue = sumValue / count; //Avg value of ROI -> This is the initial threshold
+		int initialThresh = avgValue;
+
+		//Variable initilization
+		int sumBack, sumFore, avgBack, avgFore, countBack, countFore;
+		sumBack = sumFore = avgBack = avgFore = countBack = countFore = 0;
+		int pixVal;
+		//For the ROI, find background are foreground
+		for (int x = otgX; x < (otgX + otgSX); x++) {
+			for (int y = otgY; y < (otgY + otgSY); y++) {
+				pixVal = tgt.getPixel(x, y);
+				if (pixVal <= avgValue) {
+					sumBack += pixVal;
+					countBack++;
+				} else {
+					sumFore += pixVal;
+					countFore++;
+				}
+			}
+		}
+		avgBack = sumBack / countBack;
+		avgFore = sumFore / countFore;
+		int newThreshold = (avgBack + avgFore) / 2;
+
+		/********************THRESHOLD LIMIT*****************************/
+		int threshDeltaLimit = 1; //Limit for threshold
+		if (abs(initialThresh - newThreshold) >= threshDeltaLimit) {
+			//Binarize as needed if difference is too big
+			for (int x = otgX; x < (otgX + otgSX); x++) {
+				for (int y = otgY; y < (otgY + otgSY); y++) {
+					if (src.getPixel(x, y) <= newThreshold) {
+						//Background set to black
+						tgt.setPixel(x, y, MINRGB);
+					}
+					else {
+						//Foreground set to white
+						tgt.setPixel(x, y, MAXRGB);
+					}
+				}
+			}
+
+		} else {
+			continue;
+		}
 	}
 }
 
 /*-----------------------------------------------------------------------**/
-void utility::optimalThreshGray(image &src, image &tgt, int a, int b) {
+//Helper histoStretch function to the function of Combined Optimal Thresholding and Histogram Stretching
+void histoStretch(image &tgt, int othsX, int othsY, int othsSX, int othsSY, int origMin, int origMax) {
+	
+	int intensity = 0;
+	int newMaxIntensity = tgt.getPixel(1, 1);
+	int newMinIntensity = tgt.getPixel(1, 1);
 
+	//Traversal of image to new get min/max values after optimal Thresholding
+	for (int x = othsX; x < (othsX + othsSX); x++) {
+		for (int y = othsY; y < (othsY + othsSY); y++) {
+			intensity = tgt.getPixel(x, y);
+
+			if (intensity > newMaxIntensity) {
+				newMaxIntensity = intensity;
+			}
+			if (intensity < newMinIntensity) {
+				newMinIntensity = intensity;
+			}
+		}
+	}
+
+	//Traversal to get new intensities
+	int currIntensity, newIntensity;
+	double a = newMinIntensity; //Min Intensity of this ROI
+	double b = newMaxIntensity; //Max intensity of this ROI
+	double c = origMin;
+	double d = origMax;
+	for (int x = othsX; x < (othsX + othsSX); x++) {
+		for (int y = othsY; y < (othsY + othsSY); y++) {
+			currIntensity = tgt.getPixel(x, y);
+
+			if (currIntensity >= c && currIntensity <= d) {
+				newIntensity = ( (currIntensity - c) * ((b - a) / (d - c)) ) + a; //Has to use float values
+/*
+std::cout << "a,b,c,d " << a << "," << b << "," << c << "," << d << ": " << currIntensity << "--> New intensity: " << 
+	"( (" << currIntensity << " - " << c << " ) * ((" << b << " - " << a << ") / (" << d << " - " << c << ")) ) + " << a <<
+	" = " << newIntensity << std::endl;
+*/
+				//Cap values
+				if (newIntensity > 255) { newIntensity = 255; }
+				if (newIntensity < 0) { newIntensity = 0; }
+			}
+			else if (currIntensity <= a) {
+				newIntensity = 0;
+			}
+			else if (currIntensity >= b) {
+				newIntensity = 255;
+			}
+
+			//Set new value
+			tgt.setPixel(x, y, newIntensity);
+		}
+	}
+} //End of helper histo stretch function
+/*Main Combined Optimal Thresh and Histo Stretch Function*/
+void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
+
+	//Opens the Histogram Stretch ROI file to get the regions & params
+	ifstream ot_hsROIFile("../input/ROIOptThreshHisto.txt");
+	if (!ot_hsROIFile.is_open()) {
+		fprintf(stderr, "Can't open Optimal Thresh & Histo Stretch ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	ot_hsROIFile >> numROI;
+	
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	//Create separate images for background and foreground
+	image foregroundImg, backgroundImg;
+	foregroundImg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+	foregroundImg.copyImage(tgt);
+	backgroundImg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+	backgroundImg.copyImage(tgt);
+
+	//For the number of ROIs, do the operation on the image
+	for (int i = 0; i < numROI; i++) {
+		//Vars used to calculate avg value of original image -> Initial threshold value
+		int sumValue = 0;
+		int avgValue = 0;
+
+		int othsX, othsY, othsSX, othsSY; //Parameters of ROIs for operations
+		ot_hsROIFile >> othsX >> othsY >> othsSX >> othsSY;
+
+		/********************************************************/
+		/*******************Optimal Thesholding******************/
+		/********************************************************/
+		int count = 0;
+		//For the ROI, find avg value
+		for (int x = othsX; x < (othsX + othsSX); x++) {
+			for (int y = othsY; y < (othsY + othsSY); y++) {
+				sumValue += tgt.getPixel(x, y);
+				count++;
+			}
+		}
+		avgValue = sumValue / count; //Avg value of ROI -> This is the initial threshold
+		int initialThresh = avgValue;
+
+		//Variable initilization
+		int sumBack, sumFore, avgBack, avgFore, countBack, countFore;
+		sumBack = sumFore = avgBack = avgFore = countBack = countFore = 0;
+		int pixVal;
+
+		//For the ROI, find background are foreground
+		for (int x = othsX; x < (othsX + othsSX); x++) {
+			for (int y = othsY; y < (othsY + othsSY); y++) {
+				pixVal = tgt.getPixel(x, y);
+				if (pixVal <= avgValue) {
+					sumBack += pixVal;
+					countBack++;
+				}
+				else {
+					sumFore += pixVal;
+					countFore++;
+				}
+			}
+		}
+		avgBack = sumBack / countBack;
+		avgFore = sumFore / countFore;
+		int newThreshold = (avgBack + avgFore) / 2;
+
+		int threshDeltaLimit = 1; //Limit for threshold
+		if (abs(initialThresh - newThreshold) >= threshDeltaLimit) {
+			//Binarize as needed if difference is too big
+			for (int x = othsX; x < (othsX + othsSX); x++) {
+				for (int y = othsY; y < (othsY + othsSY); y++) {
+					if (src.getPixel(x, y) <= newThreshold) {
+						//Foreground image shows foreground in black pixels also
+						foregroundImg.setPixel(x, y, MINRGB);						
+					}
+					else {
+						//Background image shows background in black pixels
+						backgroundImg.setPixel(x, y, MINRGB);
+					}
+				}
+			}
+		}
+		//Save the images of background and foreground, both represented by black pixels in the image
+//		foregroundImg.save("../output/optimalAndStretched/black_foreground_img.pgm");
+		backgroundImg.save("../output/optimalAndStretched/black_background_img.pgm");
+
+		////////////////////////////////////////////////////////////////////////
+		/********tgt now has had optimal thresholding done to it***************/
+		////////////////////////////////////////////////////////////////////////
+
+
+		/**********************************************************************/
+		/******************Historgram Stretching for same ROI******************/
+		/**********************************************************************/
+		//Create new images to be stretched versions of the thresholded background 
+		//and foreground images
+		image foregroundStretched, backgroundStretched;
+		foregroundStretched.resize(foregroundImg.getNumberOfRows(), foregroundImg.getNumberOfColumns());
+		foregroundStretched.copyImage(foregroundImg);
+		backgroundStretched.resize(backgroundImg.getNumberOfRows(), backgroundImg.getNumberOfColumns());
+		backgroundStretched.copyImage(backgroundImg);
+
+		//Get min and max intensities of original image; 'C' and 'D'
+		int origMin, origMax;
+		origMin = origMax = src.getPixel(0, 0);
+		for (int x = othsX; x < (othsX + othsSX); x++) {
+			for (int y = othsY; y < (othsY + othsSY); y++) {
+				int currInten = src.getPixel(x, y);
+				if (origMax < currInten) { origMax = currInten; }
+				if (origMin > currInten) { origMin = currInten; }
+			}
+		}
+
+		histoStretch(foregroundStretched, othsX, othsY, othsSX, othsSY, origMin, origMax);
+		histoStretch(backgroundStretched, othsX, othsY, othsSX, othsSY, origMin, origMax);
+
+//		foregroundStretched.save("../output/optimalAndStretched/stretched_foreground_img.pgm");
+		backgroundStretched.save("../output/optimalAndStretched/stretched_background_img.pgm");
+	}
 }
 
 /*-----------------------------------------------------------------------**/
-void colorHistogramStretch(image &src, image &tgt, int a, int b) {
+void utility::colorHistogramStretch(image &src, image &tgt, int a, int b) {
 
-
+	
 }
