@@ -1,3 +1,4 @@
 ﻿  utility.cpp
-c:\users\curti\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw2 - due 2-24-20\project2code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(144): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-  iptool.vcxproj -> C:\Users\curti\OneDrive - University of South Florida\20SP\CAP 4401 - Image Proc Fund\HW2 - Due 2-24-20\Project2Code_CurtisDavis\iptool\x64\Debug\iptool.exe
+c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw2 - due 2-24-20\project2code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(144): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw2 - due 2-24-20\project2code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(556): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+  iptool.vcxproj -> C:\Users\Curtis\OneDrive - University of South Florida\20SP\CAP 4401 - Image Proc Fund\HW2 - Due 2-24-20\Project2Code_CurtisDavis\iptool\x64\Debug\iptool.exe
