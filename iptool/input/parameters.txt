@@ -1,4 +1,13 @@
-3
+12
+../input/baboon.pgm ../output/baboon_bi125.pgm binarize 125
+../input/baboon.pgm ../output/baboon_add50.pgm add 50
+../input/baboon.pgm ../output/baboon_s200.pgm scale 2
+../input/baboon.pgm ../output/baboon_s50.pgm scale 0.5
+../input/baboon.pgm ../output/baboon_doubleT.pgm doubleT 0
+../input/004.ppm ../output/004_colorBin.ppm colorBin 0
+../input/baboon.pgm ../output/baboon_2Dsmoothed.pgm uSmooth 2
+../input/baboon.pgm ../output/baboon_1Dsmoothed.pgm uSmooth 1
+../input/baboon.pgm ../output/baboon_1DIncrementalSmoothed.pgm uSmooth 0
 ../input/slope.pgm ../output/slope_grayHistStretch.pgm grayHistStretch 0
 ../input/baboon.pgm ../output/baboon_optimalThreshGray.pgm optThreshGray 0
 ../input/slope.pgm ../output/slope_comboOptThr-HistoStch.pgm optThHisto 0

@@ -339,24 +339,24 @@ void createHistogram(image &src, int startX, int endX, int startY, int endY, int
 	histogram.resize(256, 256);
 
 	//Creates a new file name
-	char fileName[256];
-	char stringIteration[256];
-	
+	std::string fileName;
+	std::string s(outfile);
+	std::string histoFile = s.substr(s.find_last_of("/") + 1);
+	histoFile = histoFile.substr(0, histoFile.find(".", 0));
+
 	//Create an output file for the histogram, named as a histogram by ROI
-	strcpy_s(fileName, 256, "../output/");
-	//True = before
-	strcat_s(fileName, 256, outfile);
+	fileName += "../output/";
+	fileName += histoFile; //Puts src image name
 	if (beforeAfter) {
-		strcat_s(fileName, 256, "ImgBefore");
+		fileName += "ImgBefore";
 	}
 	else {
-		strcat_s(fileName, 256, "ImgAfter");
+		fileName += "ImgAfter";
 	}
-	strcat_s(fileName, 256, "_Histogram-ROI");
-	sprintf_s(stringIteration, "%d", iteration);
-	strcat_s(fileName, 256, stringIteration);
-	strcat_s(fileName, 256, ".pgm");
-
+	fileName += "_Histogram-ROI";
+	fileName += to_string(iteration); //Puts ROI Iteration
+	fileName += ".pgm";
+	
 	//Traverse the count of pixels and print them to the image
 	for (int x = 0; x < 256; x++) {
 		for (int y = 0; y < pixelIntensityCounts[x]; y++) {
@@ -364,7 +364,7 @@ void createHistogram(image &src, int startX, int endX, int startY, int endY, int
 			histogram.setPixel(255-y, x, 255);
 		}
 	}
-	histogram.save(fileName); //Save output histogram
+	histogram.save(fileName.c_str()); //Save output histogram
 }
 /*Main Gray Histogram Stretch*/
 void utility::grayHistoStretch(image &src, image &tgt, char outfile[]) {
@@ -522,21 +522,22 @@ void utility::optimalThreshGray(image &src, image &tgt) {
 
 /*-----------------------------------------------------------------------**/
 //Helper histoStretch function to the function of Combined Optimal Thresholding and Histogram Stretching
-void histoStretch(image &tgt, int othsX, int othsY, int othsSX, int othsSY, int origMin, int origMax) {
-	
-	int intensity = 0;
-	int newMaxIntensity = tgt.getPixel(1, 1);
-	int newMinIntensity = tgt.getPixel(1, 1);
+void histoStretch(image &src, image &tgt, int othsX, int othsY, int othsSX, int othsSY) {
 
+	int intensity = 0;
+	int newMaxIntensity = 0; //Set to 'impossible' max value
+	int newMinIntensity = 255;
 	//Traversal of image to new get min/max values after optimal Thresholding
 	for (int x = othsX; x < (othsX + othsSX); x++) {
 		for (int y = othsY; y < (othsY + othsSY); y++) {
 			intensity = tgt.getPixel(x, y);
-
-			if (intensity > newMaxIntensity) {
+			if (intensity <= 0) {
+				//Skip black pixels (not in region)
+			}
+			else if (intensity > newMaxIntensity) {
 				newMaxIntensity = intensity;
 			}
-			if (intensity < newMinIntensity) {
+			else if (intensity < newMinIntensity) {
 				newMinIntensity = intensity;
 			}
 		}
@@ -546,34 +547,29 @@ void histoStretch(image &tgt, int othsX, int othsY, int othsSX, int othsSY, int 
 	int currIntensity, newIntensity;
 	double a = newMinIntensity; //Min Intensity of this ROI
 	double b = newMaxIntensity; //Max intensity of this ROI
-	double c = origMin;
-	double d = origMax;
+	double c = 0; //Original min
+	double d = 255; //Original max
+
 	for (int x = othsX; x < (othsX + othsSX); x++) {
 		for (int y = othsY; y < (othsY + othsSY); y++) {
 			currIntensity = tgt.getPixel(x, y);
+			//If current intensity if within old range, change them to new range
+			newIntensity = ((currIntensity - a) * ((d - c) / (b - a))) + c; //Has to use float values
 
-			if (currIntensity >= c && currIntensity <= d) {
-				newIntensity = ( (currIntensity - c) * ((b - a) / (d - c)) ) + a; //Has to use float values
-/*
-std::cout << "a,b,c,d " << a << "," << b << "," << c << "," << d << ": " << currIntensity << "--> New intensity: " << 
-	"( (" << currIntensity << " - " << c << " ) * ((" << b << " - " << a << ") / (" << d << " - " << c << ")) ) + " << a <<
-	" = " << newIntensity << std::endl;
-*/
-				//Cap values
-				if (newIntensity > 255) { newIntensity = 255; }
-				if (newIntensity < 0) { newIntensity = 0; }
-			}
-			else if (currIntensity <= a) {
+			if (currIntensity < a) { //If curr intensity below new min, set to 0
 				newIntensity = 0;
 			}
-			else if (currIntensity >= b) {
+			else if (currIntensity > b) { //If above new max, set to 255
 				newIntensity = 255;
 			}
 
-			//Set new value
-			tgt.setPixel(x, y, newIntensity);
+			if (currIntensity != 0) {
+				//Set new value if current pixel isn't black
+				tgt.setPixel(x, y, newIntensity); //only stretch the intended values
+			}			
 		}
 	}
+
 } //End of helper histo stretch function
 /*Main Combined Optimal Thresh and Histo Stretch Function*/
 void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
@@ -643,7 +639,7 @@ void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
 		avgFore = sumFore / countFore;
 		int newThreshold = (avgBack + avgFore) / 2;
 
-		int threshDeltaLimit = 1; //Limit for threshold
+		int threshDeltaLimit = 0; //Limit for threshold
 		if (abs(initialThresh - newThreshold) >= threshDeltaLimit) {
 			//Binarize as needed if difference is too big
 			for (int x = othsX; x < (othsX + othsSX); x++) {
@@ -660,7 +656,7 @@ void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
 			}
 		}
 		//Save the images of background and foreground, both represented by black pixels in the image
-//		foregroundImg.save("../output/optimalAndStretched/black_foreground_img.pgm");
+		foregroundImg.save("../output/optimalAndStretched/black_foreground_img.pgm");
 		backgroundImg.save("../output/optimalAndStretched/black_background_img.pgm");
 
 		////////////////////////////////////////////////////////////////////////
@@ -679,22 +675,25 @@ void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
 		backgroundStretched.resize(backgroundImg.getNumberOfRows(), backgroundImg.getNumberOfColumns());
 		backgroundStretched.copyImage(backgroundImg);
 
-		//Get min and max intensities of original image; 'C' and 'D'
-		int origMin, origMax;
-		origMin = origMax = src.getPixel(0, 0);
+		//Stretch the respecctive regions
+		histoStretch(src, foregroundStretched, othsX, othsY, othsSX, othsSY);
+		histoStretch(src, backgroundStretched, othsX, othsY, othsSX, othsSY);
+
+		foregroundStretched.save("../output/optimalAndStretched/stretched_foreground_img.pgm");
+		backgroundStretched.save("../output/optimalAndStretched/stretched_background_img.pgm");
+
+		tgt.copyImage(foregroundStretched); //Copy one image to start
+
+		//Change final output file to what's needed
+		int copyIntensity;
 		for (int x = othsX; x < (othsX + othsSX); x++) {
 			for (int y = othsY; y < (othsY + othsSY); y++) {
-				int currInten = src.getPixel(x, y);
-				if (origMax < currInten) { origMax = currInten; }
-				if (origMin > currInten) { origMin = currInten; }
+				copyIntensity = backgroundStretched.getPixel(x, y);
+				if (copyIntensity > 0) {
+					tgt.setPixel(x, y, copyIntensity);
+				}
 			}
 		}
-
-		histoStretch(foregroundStretched, othsX, othsY, othsSX, othsSY, origMin, origMax);
-		histoStretch(backgroundStretched, othsX, othsY, othsSX, othsSY, origMin, origMax);
-
-//		foregroundStretched.save("../output/optimalAndStretched/stretched_foreground_img.pgm");
-		backgroundStretched.save("../output/optimalAndStretched/stretched_background_img.pgm");
 	}
 }
 
