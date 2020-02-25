@@ -79,7 +79,6 @@ Scaling factor = 0.5: half height and width of the input image.
 /******End of new functions******/
 
 
-
 *** PARAMETERS ***
 
 The first parameter of the parameters.txt is the number of operations (lines).
