@@ -97,7 +97,10 @@ int main (int argc, char** argv)
 		else if (strncmp(str, "sobelEdgeGray", 10) == 0) {
 			/* Edge detection of gray images */
 			fp >> str;
-			utility::sobelEdgeDetectGray(src, tgt);
+			int threshold;
+			std::cout << std::endl << "Please enter the threshold for the \"Sobel Edge Detect Gray\" algorithm: ";
+			std::cin >> threshold;
+			utility::sobelEdgeDetectGray(src, tgt, threshold);
 			std::cout << "Sobel Edge Detection of Grayscale image algorithm complete." << std::endl;
 		}
 
@@ -105,7 +108,7 @@ int main (int argc, char** argv)
 			/* Edge detection of color images */
 			fp >> str;
 			utility::edgeDetectColor(src, tgt);
-			std::cout << "Sobel Edge Detection of Grayscale image algorithm complete." << std::endl;
+			std::cout << "Edge Detection of Color image algorithm complete." << std::endl;
 		}
 
 		else {

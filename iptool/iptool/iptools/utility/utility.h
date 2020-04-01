@@ -22,7 +22,7 @@ class utility
 		static void optimalThreshGray(image &src, image &tgt);
 		static void optimalThresh_HistoStretch(image &src, image &tgt);
 
-		static void sobelEdgeDetectGray(image &src, image &tgt);
+		static void sobelEdgeDetectGray(image &src, image &tgt, int threshold = 25);
 		static void edgeDetectColor(image &src, image &tgt);
 };
 
