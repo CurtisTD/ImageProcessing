@@ -21,7 +21,9 @@ class utility
 		static void grayHistoStretch(image &src, image &tgt, char outfile[]);
 		static void optimalThreshGray(image &src, image &tgt);
 		static void optimalThresh_HistoStretch(image &src, image &tgt);
-		static void colorHistogramStretch(image &src, image &tgt, int a, int b);
+
+		static void sobelEdgeDetectGray(image &src, image &tgt, int threshold = 25);
+		static void edgeDetectColor(image &src, image &tgt);
 };
 
 #endif

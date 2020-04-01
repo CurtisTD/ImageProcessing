@@ -42,10 +42,10 @@ void utility::binarize(image &src, image &tgt, int threshold)
 	{
 		for (int j=0; j<src.getNumberOfColumns(); j++)
 		{
-			if (src.getPixel(i,j) < threshold)
-				tgt.setPixel(i,j,MINRGB);
+			if (src.getPixel(i, j) < threshold)
+				tgt.setPixel(i, j, MINRGB);
 			else
-				tgt.setPixel(i,j,MAXRGB);
+				tgt.setPixel(i, j, MAXRGB);
 		}
 	}
 }
@@ -698,7 +698,233 @@ void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
 }
 
 /*-----------------------------------------------------------------------**/
-void utility::colorHistogramStretch(image &src, image &tgt, int a, int b) {
+void utility::sobelEdgeDetectGray(image &src, image &tgt, int threshold) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROIEdgeDetect.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Sobel Edge Detect Gray ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
 
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	image img2d;
+	img2d.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+	img2d.copyImage(tgt);
+
+	//Image horizontal orig
+	image img2dhororg;
+	img2dhororg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+
+	//Image vertical orig
+	image img2dverorg;
+	img2dverorg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+
+	//Image magnitude
+	image img2damp;
+	img2damp.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
 	
+	//For the number of ROIs, do the operation on the image
+	for (int i = 0; i < numROI; i++) {
+		std::cout << "\nROI num: " << i+1 << std::endl;
+		int dtX, dtY, dtSX, dtSY; //Parameters of ROIs for intensity operations
+		sedgROIFile >> dtX >> dtY >> dtSX >> dtSY;
+		
+		const int height = (dtY + dtSY);
+		const int width = (dtX + dtSX);
+
+		//Horizontal operations
+		std::cout << "\tDoing horoizontal operations..." << std::endl;
+		img2dhororg.copyImage(tgt); //Initially copy the image
+		int max = -999, min = 256;
+		for (int i = dtY + 1; i < height - 1; i++) {
+			for (int j = dtX + 1; j < width - 1; j++) {
+				int curr = img2d.getPixel(i - 1, j - 1) + 2 * img2d.getPixel(i - 1, j) + img2d.getPixel(i - 1, j + 1) - img2d.getPixel(i + 1, j - 1)
+					- 2 * img2d.getPixel(i + 1, j) - img2d.getPixel(i + 1, j + 1);
+				img2dhororg.setPixel(i, j, curr); //Set new value on original horizontal
+				if (curr > max) {
+					max = curr;
+				}
+				if (curr < min) {
+					min = curr;
+				}
+			}
+		}
+		std::cout << "\tEnding horizontal operations..." << std::endl;
+
+		//Vertical operations
+		std::cout << "\tDoing vertical operations..." << std::endl;
+		img2dverorg.copyImage(img2dhororg);
+		max = -999; min = 256;
+		for (int i = dtY + 1; i < height - 1; i++) {
+			for (int j = dtX + 1; j < width - 1; j++) {
+				int curr = img2d.getPixel(i - 1, j - 1) + 2 * img2d.getPixel(i, j - 1) + img2d.getPixel(i + 1, j - 1)
+					- img2d.getPixel(i - 1, j + 1) - 2 * img2d.getPixel(i, j + 1) - img2d.getPixel(i + 1, j + 1);
+				img2dverorg.setPixel(i, j, curr);
+				if (curr > max) {
+					max = curr;
+				}
+				if (curr < min) {
+					min = curr;
+				}
+			}
+		}
+		std::cout << "\tEnding vertical operations..." << std::endl;
+
+		//Operations of the amplitude
+		std::cout << "\tDoing mag operations..." << std::endl;
+		img2damp.copyImage(img2dverorg);
+		max = -999; min = 256;
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				img2damp.setPixel(i, j, sqrt(pow(img2dhororg.getPixel(i, j), 2) + pow(img2dverorg.getPixel(i, j), 2)));
+				if (img2damp.getPixel(i, j) > max) {
+					max = img2damp.getPixel(i, j);
+				}
+
+				if (img2damp.getPixel(i, j) < min) {
+					min = img2damp.getPixel(i, j);
+				}
+			}
+		}
+
+		int diff = max - min; //Get difference
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				float abc = (img2damp.getPixel(i, j) - min) / (diff*1.0);
+				img2damp.setPixel(i, j, abc * 255);
+			}
+		}
+
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				tgt.setPixel(i, j, RED, img2damp.getPixel(i, j));
+				tgt.setPixel(i, j, GREEN, img2damp.getPixel(i, j));
+				tgt.setPixel(i, j, BLUE, img2damp.getPixel(i, j));
+			}
+		}
+		std::cout << "\tEnding magnitude operations..." << std::endl;
+
+		//Binarize the image
+		std::cout << "\tDoing binarizing operations..." << std::endl;
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				if (img2damp.getPixel(i, j) < threshold) {
+					tgt.setPixel(i, j, RED, MINRGB);
+					tgt.setPixel(i, j, GREEN, MINRGB);
+					tgt.setPixel(i, j, BLUE, MINRGB);
+				}
+				else {
+					tgt.setPixel(i, j, RED, MAXRGB);
+					tgt.setPixel(i, j, GREEN, MAXRGB);
+					tgt.setPixel(i, j, BLUE, MAXRGB);
+				}
+			}
+		}
+		std::cout << "\tEnding binarizing operations..." << std::endl << std::endl;
+	}
+}
+
+
+/*--------------------------------------------------------------------*/
+void utility::edgeDetectColor(image &src, image &tgt) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROIEdgeDetect.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Edge Detect Color ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
+
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	int threshold;
+	std::cout << "\nEnter a threshold to be used for the \"Color Edge Detection\" algorithm: ";
+	std::cin >> threshold;
+
+	for (int i = 0; i < numROI; i++) {
+		std::cout << "\nROI num: " << i + 1 << std::endl;
+		int dtX, dtY, dtSX, dtSY; //Parameters of ROIs for intensity operations
+		sedgROIFile >> dtX >> dtY >> dtSX >> dtSY;
+
+		const int height = (dtY + dtSY);
+		const int width = (dtX + dtSX);
+
+		//Red channel image
+		image redChannelSrc;
+		image redEdge;
+		redChannelSrc.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		redEdge.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				redChannelSrc.setPixel(i, j, RED, tgt.getPixel(i, j, RED));
+				redChannelSrc.setPixel(i, j, GREEN, tgt.getPixel(i, j, RED));
+				redChannelSrc.setPixel(i, j, BLUE, tgt.getPixel(i, j, RED));
+			}
+		}
+
+		//Green channel image
+		image greenChannelSrc;
+		image greenEdge;
+		greenChannelSrc.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		greenEdge.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				greenChannelSrc.setPixel(i, j, RED, tgt.getPixel(i, j, GREEN));
+				greenChannelSrc.setPixel(i, j, GREEN, tgt.getPixel(i, j, GREEN));
+				greenChannelSrc.setPixel(i, j, BLUE, tgt.getPixel(i, j, GREEN));
+			}
+		}
+
+		//Blue channel image
+		image blueChannelSrc;
+		image blueEdge;
+		blueChannelSrc.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		blueEdge.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				blueChannelSrc.setPixel(i, j, RED, tgt.getPixel(i, j, BLUE));
+				blueChannelSrc.setPixel(i, j, GREEN, tgt.getPixel(i, j, BLUE));
+				blueChannelSrc.setPixel(i, j, BLUE, tgt.getPixel(i, j, BLUE));
+			}
+		}
+
+		sobelEdgeDetectGray(redChannelSrc, redEdge, threshold);
+		sobelEdgeDetectGray(greenChannelSrc, greenEdge, threshold);
+		sobelEdgeDetectGray(blueChannelSrc, blueEdge, threshold);
+		
+		//Saves the images with just each color channel
+		redChannelSrc.save("../output/redChanelSrc.ppm");
+		greenChannelSrc.save("../output/greenChanelSrc.ppm");
+		blueChannelSrc.save("../output/blueChannelSrc.ppm");
+
+		redEdge.save("../output/redEdge.ppm");
+		greenEdge.save("../output/greenEdge.ppm");
+		blueEdge.save("../output/blueEdge.ppm");
+		//All edge images have been binarized by this point from the sobel algorithm 
+		//The images now need to be combined
+
+		
+		//Combine the images back
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				if (redEdge.getPixel(i, j, RED) == MAXRGB || greenEdge.getPixel(i, j, GREEN) == MAXRGB || blueEdge.getPixel(i, j, BLUE) == MAXRGB) {
+					tgt.setPixel(i, j, RED, MAXRGB);
+					tgt.setPixel(i, j, GREEN, MAXRGB);
+					tgt.setPixel(i, j, BLUE, MAXRGB);
+					
+				}
+				else {
+					tgt.setPixel(i, j, RED, MINRGB);
+					tgt.setPixel(i, j, GREEN, MINRGB);
+					tgt.setPixel(i, j, BLUE, MINRGB);	
+				}
+			}
+		}
+	}
 }
