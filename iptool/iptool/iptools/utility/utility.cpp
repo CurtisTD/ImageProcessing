@@ -42,10 +42,10 @@ void utility::binarize(image &src, image &tgt, int threshold)
 	{
 		for (int j=0; j<src.getNumberOfColumns(); j++)
 		{
-			if (src.getPixel(i,j) < threshold)
-				tgt.setPixel(i,j,MINRGB);
+			if (src.getPixel(i, j) < threshold)
+				tgt.setPixel(i, j, MINRGB);
 			else
-				tgt.setPixel(i,j,MAXRGB);
+				tgt.setPixel(i, j, MAXRGB);
 		}
 	}
 }
@@ -698,7 +698,158 @@ void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
 }
 
 /*-----------------------------------------------------------------------**/
-void utility::colorHistogramStretch(image &src, image &tgt, int a, int b) {
+void utility::sobelEdgeDetectGray(image &src, image &tgt) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROISobelEdgeDetectGray.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Sobel Edge Detect Gray ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
 
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	int threshold;
+	std::cout << std::endl << "Please enter the threshold for the \"Sobel Edge Detect Gray\" algorithm: ";
+	std::cin >> threshold;
 	
+	image img2d;
+	img2d.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+	img2d.copyImage(tgt);
+
+	//Image horizontal orig
+	image img2dhororg;
+	img2dhororg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+
+	//Image vertical orig
+	image img2dverorg;
+	img2dverorg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+
+	//Image magnitude
+	image img2dmag;
+	img2dmag.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+	
+	//For the number of ROIs, do the operation on the image
+	for (int i = 0; i < numROI; i++) {
+		std::cout << "\nROI num: " << i+1 << std::endl;
+		int dtX, dtY, dtSX, dtSY; //Parameters of ROIs for intensity operations
+		sedgROIFile >> dtX >> dtY >> dtSX >> dtSY;
+		
+		const int height = (dtY + dtSY);
+		const int width = (dtX + dtSX);
+
+		//Horizontal operations
+		std::cout << "\tDoing horoizontal operations..." << std::endl;
+		img2dhororg.copyImage(tgt); //Initially copy the image
+		int max = -999, min = 256;
+		for (int i = dtY + 1; i < height - 1; i++) {
+			for (int j = dtX + 1; j < width - 1; j++) {
+				int curr = img2d.getPixel(i - 1, j - 1) + 2 * img2d.getPixel(i - 1, j) + img2d.getPixel(i - 1, j + 1) - img2d.getPixel(i + 1, j - 1)
+					- 2 * img2d.getPixel(i + 1, j) - img2d.getPixel(i + 1, j + 1);
+				img2dhororg.setPixel(i, j, curr); //Set new value on original horizontal
+				if (curr > max) {
+					max = curr;
+				}
+				if (curr < min) {
+					min = curr;
+				}
+			}
+		}
+		std::cout << "\tEnding horizontal operations..." << std::endl;
+
+		//Vertical operations
+		std::cout << "\tDoing vertical operations..." << std::endl;
+		img2dverorg.copyImage(img2dhororg);
+		max = -999; min = 256;
+		for (int i = dtY + 1; i < height - 1; i++) {
+			for (int j = dtX + 1; j < width - 1; j++) {
+				int curr = img2d.getPixel(i - 1, j - 1) + 2 * img2d.getPixel(i, j - 1) + img2d.getPixel(i + 1, j - 1)
+					- img2d.getPixel(i - 1, j + 1) - 2 * img2d.getPixel(i, j + 1) - img2d.getPixel(i + 1, j + 1);
+				img2dverorg.setPixel(i, j, curr);
+				if (curr > max) {
+					max = curr;
+				}
+				if (curr < min) {
+					min = curr;
+				}
+			}
+		}
+		std::cout << "\tEnding vertical operations..." << std::endl;
+
+		//Operations of the magnitude
+		std::cout << "\tDoing mag operations..." << std::endl;
+		img2dmag.copyImage(img2dverorg);
+		max = -999; min = 256;
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				img2dmag.setPixel(i, j, sqrt(pow(img2dhororg.getPixel(i, j), 2) + pow(img2dverorg.getPixel(i, j), 2)));
+				if (img2dmag.getPixel(i, j) > max) {
+					max = img2dmag.getPixel(i, j);
+				}
+
+				if (img2dmag.getPixel(i, j) < min) {
+					min = img2dmag.getPixel(i, j);
+				}
+			}
+		}
+
+		int diff = max - min; //Get difference
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				float abc = (img2dmag.getPixel(i, j) - min) / (diff*1.0);
+				img2dmag.setPixel(i, j, abc * 255);
+			}
+		}
+
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				tgt.setPixel(i, j, RED, img2dmag.getPixel(i, j));
+				tgt.setPixel(i, j, GREEN, img2dmag.getPixel(i, j));
+				tgt.setPixel(i, j, BLUE, img2dmag.getPixel(i, j));
+			}
+		}
+		std::cout << "\tEnding magnitude operations..." << std::endl;
+
+		//Binarize the image
+		std::cout << "\tDoing binarizing operations..." << std::endl;
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				if (img2dmag.getPixel(i, j) < threshold) {
+					tgt.setPixel(i, j, RED, MINRGB);
+					tgt.setPixel(i, j, GREEN, MINRGB);
+					tgt.setPixel(i, j, BLUE, MINRGB);
+				}
+				else {
+					tgt.setPixel(i, j, RED, MAXRGB);
+					tgt.setPixel(i, j, GREEN, MAXRGB);
+					tgt.setPixel(i, j, BLUE, MAXRGB);
+				}
+			}
+		}
+		std::cout << "\tEnding binarizing operations..." << std::endl << std::endl;
+	}
+}
+
+
+/*--------------------------------------------------------------------*/
+void utility::edgeDetectColor(image &src, image &tgt) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROIEdgeDetectColor.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Edge Detect Color ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
+
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	int threshold;
+	std::cout << std::endl << "Please enter the threshold for the \"Edge Detect Color\" algorithm: ";
+	std::cin >> threshold;
+
+
 }

@@ -146,6 +146,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="iptool.h" />
     <ClInclude Include="iptools\image\image.h" />
     <ClInclude Include="iptools\utility\utility.h" />
   </ItemGroup>

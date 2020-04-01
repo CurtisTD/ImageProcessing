@@ -94,6 +94,20 @@ int main (int argc, char** argv)
 			std::cout << "Optimal Thresholding of Gray Image combined with Histogram stretching algorithm complete." << std::endl;
 		}
 
+		else if (strncmp(str, "sobelEdgeGray", 10) == 0) {
+			/* Edge detection of gray images */
+			fp >> str;
+			utility::sobelEdgeDetectGray(src, tgt);
+			std::cout << "Sobel Edge Detection of Grayscale image algorithm complete." << std::endl;
+		}
+
+		else if (strncmp(str, "edgeDetectColor", 15) == 0) {
+			/* Edge detection of color images */
+			fp >> str;
+			utility::edgeDetectColor(src, tgt);
+			std::cout << "Sobel Edge Detection of Grayscale image algorithm complete." << std::endl;
+		}
+
 		else {
 			printf("No function: %s\n", str);
 			continue;
