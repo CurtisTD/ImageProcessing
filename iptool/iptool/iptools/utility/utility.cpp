@@ -2,6 +2,10 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/objdetect.hpp"
 
 
 #define MAXRGB 255
@@ -42,10 +46,10 @@ void utility::binarize(image &src, image &tgt, int threshold)
 	{
 		for (int j=0; j<src.getNumberOfColumns(); j++)
 		{
-			if (src.getPixel(i,j) < threshold)
-				tgt.setPixel(i,j,MINRGB);
+			if (src.getPixel(i, j) < threshold)
+				tgt.setPixel(i, j, MINRGB);
 			else
-				tgt.setPixel(i,j,MAXRGB);
+				tgt.setPixel(i, j, MAXRGB);
 		}
 	}
 }
@@ -698,7 +702,341 @@ void utility::optimalThresh_HistoStretch(image &src, image &tgt) {
 }
 
 /*-----------------------------------------------------------------------**/
-void utility::colorHistogramStretch(image &src, image &tgt, int a, int b) {
+void utility::sobelEdgeDetectGray(image &src, image &tgt, int threshold) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROIEdgeDetect.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Sobel Edge Detect Gray ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
 
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	image img2d;
+	img2d.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+	img2d.copyImage(tgt);
+
+	//Image horizontal orig
+	image img2dhororg;
+	img2dhororg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+
+	//Image vertical orig
+	image img2dverorg;
+	img2dverorg.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+
+	//Image magnitude
+	image img2damp;
+	img2damp.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
 	
+	//For the number of ROIs, do the operation on the image
+	for (int i = 0; i < numROI; i++) {
+		std::cout << "\nROI num: " << i+1 << std::endl;
+		int dtX, dtY, dtSX, dtSY; //Parameters of ROIs for intensity operations
+		sedgROIFile >> dtX >> dtY >> dtSX >> dtSY;
+		
+		const int height = (dtY + dtSY);
+		const int width = (dtX + dtSX);
+
+		//Horizontal operations
+		std::cout << "\tDoing horoizontal operations..." << std::endl;
+		img2dhororg.copyImage(tgt); //Initially copy the image
+		int max = -999, min = 256;
+		for (int i = dtY + 1; i < height - 1; i++) {
+			for (int j = dtX + 1; j < width - 1; j++) {
+				int curr = img2d.getPixel(i - 1, j - 1) + 2 * img2d.getPixel(i - 1, j) + img2d.getPixel(i - 1, j + 1) - img2d.getPixel(i + 1, j - 1)
+					- 2 * img2d.getPixel(i + 1, j) - img2d.getPixel(i + 1, j + 1);
+				img2dhororg.setPixel(i, j, curr); //Set new value on original horizontal
+				if (curr > max) {
+					max = curr;
+				}
+				if (curr < min) {
+					min = curr;
+				}
+			}
+		}
+		std::cout << "\tEnding horizontal operations..." << std::endl;
+
+		//Vertical operations
+		std::cout << "\tDoing vertical operations..." << std::endl;
+		img2dverorg.copyImage(img2dhororg);
+		max = -999; min = 256;
+		for (int i = dtY + 1; i < height - 1; i++) {
+			for (int j = dtX + 1; j < width - 1; j++) {
+				int curr = img2d.getPixel(i - 1, j - 1) + 2 * img2d.getPixel(i, j - 1) + img2d.getPixel(i + 1, j - 1)
+					- img2d.getPixel(i - 1, j + 1) - 2 * img2d.getPixel(i, j + 1) - img2d.getPixel(i + 1, j + 1);
+				img2dverorg.setPixel(i, j, curr);
+				if (curr > max) {
+					max = curr;
+				}
+				if (curr < min) {
+					min = curr;
+				}
+			}
+		}
+		std::cout << "\tEnding vertical operations..." << std::endl;
+
+		//Operations of the amplitude
+		std::cout << "\tDoing mag operations..." << std::endl;
+		img2damp.copyImage(img2dverorg);
+		max = -999; min = 256;
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				img2damp.setPixel(i, j, sqrt(pow(img2dhororg.getPixel(i, j), 2) + pow(img2dverorg.getPixel(i, j), 2)));
+				if (img2damp.getPixel(i, j) > max) {
+					max = img2damp.getPixel(i, j);
+				}
+
+				if (img2damp.getPixel(i, j) < min) {
+					min = img2damp.getPixel(i, j);
+				}
+			}
+		}
+
+		int diff = max - min; //Get difference
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				float abc = (img2damp.getPixel(i, j) - min) / (diff*1.0);
+				img2damp.setPixel(i, j, abc * 255);
+			}
+		}
+
+		for (int i = dtY; i < height; i++) {
+			for (int j = dtX; j < width; j++) {
+				tgt.setPixel(i, j, RED, img2damp.getPixel(i, j));
+				tgt.setPixel(i, j, GREEN, img2damp.getPixel(i, j));
+				tgt.setPixel(i, j, BLUE, img2damp.getPixel(i, j));
+			}
+		}
+		std::cout << "\tEnding magnitude operations..." << std::endl;
+
+		//Binarize the image
+		std::cout << "\tDoing binarizing operations..." << std::endl;
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				if (img2damp.getPixel(i, j) < threshold) {
+					tgt.setPixel(i, j, RED, MINRGB);
+					tgt.setPixel(i, j, GREEN, MINRGB);
+					tgt.setPixel(i, j, BLUE, MINRGB);
+				}
+				else {
+					tgt.setPixel(i, j, RED, MAXRGB);
+					tgt.setPixel(i, j, GREEN, MAXRGB);
+					tgt.setPixel(i, j, BLUE, MAXRGB);
+				}
+			}
+		}
+		std::cout << "\tEnding binarizing operations..." << std::endl << std::endl;
+	}
+}
+
+
+/*--------------------------------------------------------------------*/
+void utility::edgeDetectColor(image &src, image &tgt) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROIEdgeDetect.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Edge Detect Color ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
+
+	//Initially copy the image
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+	tgt.copyImage(src);
+
+	int threshold;
+	std::cout << "\nEnter a threshold to be used for the \"Color Edge Detection\" algorithm: ";
+	std::cin >> threshold;
+
+	for (int i = 0; i < numROI; i++) {
+		std::cout << "\nROI num: " << i + 1 << std::endl;
+		int dtX, dtY, dtSX, dtSY; //Parameters of ROIs for intensity operations
+		sedgROIFile >> dtX >> dtY >> dtSX >> dtSY;
+
+		const int height = (dtY + dtSY);
+		const int width = (dtX + dtSX);
+
+		//Red channel image
+		image redChannelSrc;
+		image redEdge;
+		redChannelSrc.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		redEdge.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				redChannelSrc.setPixel(i, j, RED, tgt.getPixel(i, j, RED));
+				redChannelSrc.setPixel(i, j, GREEN, tgt.getPixel(i, j, RED));
+				redChannelSrc.setPixel(i, j, BLUE, tgt.getPixel(i, j, RED));
+			}
+		}
+
+		//Green channel image
+		image greenChannelSrc;
+		image greenEdge;
+		greenChannelSrc.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		greenEdge.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				greenChannelSrc.setPixel(i, j, RED, tgt.getPixel(i, j, GREEN));
+				greenChannelSrc.setPixel(i, j, GREEN, tgt.getPixel(i, j, GREEN));
+				greenChannelSrc.setPixel(i, j, BLUE, tgt.getPixel(i, j, GREEN));
+			}
+		}
+
+		//Blue channel image
+		image blueChannelSrc;
+		image blueEdge;
+		blueChannelSrc.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		blueEdge.resize(tgt.getNumberOfRows(), tgt.getNumberOfColumns());
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				blueChannelSrc.setPixel(i, j, RED, tgt.getPixel(i, j, BLUE));
+				blueChannelSrc.setPixel(i, j, GREEN, tgt.getPixel(i, j, BLUE));
+				blueChannelSrc.setPixel(i, j, BLUE, tgt.getPixel(i, j, BLUE));
+			}
+		}
+
+		sobelEdgeDetectGray(redChannelSrc, redEdge, threshold);
+		sobelEdgeDetectGray(greenChannelSrc, greenEdge, threshold);
+		sobelEdgeDetectGray(blueChannelSrc, blueEdge, threshold);
+		
+		//Saves the images with just each color channel
+		redChannelSrc.save("../output/redChanelSrc.ppm");
+		greenChannelSrc.save("../output/greenChanelSrc.ppm");
+		blueChannelSrc.save("../output/blueChannelSrc.ppm");
+
+		redEdge.save("../output/redEdge.ppm");
+		greenEdge.save("../output/greenEdge.ppm");
+		blueEdge.save("../output/blueEdge.ppm");
+		//All edge images have been binarized by this point from the sobel algorithm 
+		//The images now need to be combined
+
+		
+		//Combine the images back
+		for (int i = dtY; i < height - 1; i++) {
+			for (int j = dtX; j < width - 1; j++) {
+				if (redEdge.getPixel(i, j, RED) == MAXRGB || greenEdge.getPixel(i, j, GREEN) == MAXRGB || blueEdge.getPixel(i, j, BLUE) == MAXRGB) {
+					tgt.setPixel(i, j, RED, MAXRGB);
+					tgt.setPixel(i, j, GREEN, MAXRGB);
+					tgt.setPixel(i, j, BLUE, MAXRGB);
+					
+				}
+				else {
+					tgt.setPixel(i, j, RED, MINRGB);
+					tgt.setPixel(i, j, GREEN, MINRGB);
+					tgt.setPixel(i, j, BLUE, MINRGB);	
+				}
+			}
+		}
+	}
+}
+
+/*****New functions for project 4*****/
+/*--------------------------------------------------------------------*/
+
+void utility::openCVHistogramStretch(image &src, image &tgt, char outfile[]) {
+	// Opens the Optimal Thresh ROI file to get the regions & params
+	
+	utility::grayHistoStretch(src, tgt, outfile); //Directly calls gray histrogram stretch algorithm
+}
+
+void utility::openCVEdgeDetect(std::string srcPath, std::string dstPath) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROIEdgeDetect.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Edge Detect Color ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
+
+	cv::Mat finalSobelImage = cv::imread(srcPath);
+	cv::Mat finalCannyImage = cv::imread(srcPath);
+
+	for (int i = 0; i < numROI; i++) {
+		std::cout << "\nROI num: " << i + 1 << std::endl;
+		int dtX, dtY, dtSX, dtSY; //Parameters of ROIs for intensity operations
+		sedgROIFile >> dtX >> dtY >> dtSX >> dtSY;
+
+		//Read in the image
+		cv::Mat sobel_dstImage;
+		cv::Mat sobelROI_dstImage;
+		cv::Mat canny_dstImage;
+		cv::Mat cannyROI_dstImage;
+		if ( finalSobelImage.empty() || finalCannyImage.empty() ) {
+			cout << "OpenCV Histo Equalize failed to open an image" << endl;
+			return;
+		}
+
+		//Get an ROI for Sobel, filter it, top apply back to src later
+		cv::Mat sobelROI(finalSobelImage, cv::Rect(dtX, dtY, dtSX, dtSY));
+		cv::Sobel(sobelROI, sobelROI_dstImage, -1, 1, 0);
+
+		//Get an ROI for Canny, filter it, top apply back to src later
+		cv::Mat cannyROI(finalCannyImage, cv::Rect(dtX, dtY, dtSX, dtSY));
+		cv::Canny(cannyROI, cannyROI_dstImage, 60, 60 * 3);
+		
+		//Merge ROIs onto source images
+//		cannyROI_dstImage.copyTo( finalCannyImage(cv::Rect(dtX, dtY, dtSX, dtSY)) );
+		sobelROI_dstImage.copyTo( finalSobelImage(cv::Rect(dtX, dtY, dtSX, dtSY)) );
+	}	
+
+	//Show overall final image with all ROIs
+//	cv::imshow("Modified Sobel ROI(s) on Src Image", finalSobelImage);
+//	cv::imshow("Modified Canny ROI(s) on Src Image", finalCannyImage);
+
+	cv::imwrite("../output/baboon_OpenCVcannyFilter.png", finalCannyImage);
+	cv::imwrite("../output/baboon_OpenCVsobelFilter.png", finalSobelImage);
+}
+
+void utility::combinedOCVEqualStretch(std::string srcPath, std::string dstPath) {
+
+	//Read in as images
+	cv::Mat srcImage = cv::imread(srcPath, 0);
+
+	cv::Mat eqaulizedImg; //To modify
+	
+	//Equalization
+	cv::equalizeHist(srcImage, eqaulizedImg);
+	
+	//Edge detection
+	cv::Mat sobelEqualized, cannyEqualized;
+	cv::Sobel(eqaulizedImg, sobelEqualized, -1, 1, 0);
+	cv::Canny(eqaulizedImg, cannyEqualized, 60, 60 * 3);
+
+	//Writes the images to output
+	cv::imwrite("../output/baboon_ocvEqualizedSobel.png", sobelEqualized);
+	cv::imwrite("../output/baboon_ocvEqualizedCanny.png", cannyEqualized);
+}
+
+void utility::qrReaderFunction(std::string srcPath) {
+	std::cout << "Performing QR code readings" << std::endl;
+
+	cv::Mat qrCodeImg1 = cv::imread("../input/QR/qr1.png");
+	cv::Mat qrCodeImg2 = cv::imread("../input/QR/qr2.jpg");
+	cv::Mat qrCodeImg3 = cv::imread("../input/QR/qr3.jpg");
+	cv::Mat qrCodeImg4 = cv::imread("../input/QR/qr4.jpg");
+
+	//Make a QR decoder
+	cv::QRCodeDetector qrDecoder = cv::QRCodeDetector::QRCodeDetector();
+
+	//Get URL
+	std::string urls[4];
+	urls[0] = qrDecoder.detectAndDecode(qrCodeImg1);
+	urls[1] = qrDecoder.detectAndDecode(qrCodeImg2);
+	urls[2] = qrDecoder.detectAndDecode(qrCodeImg3);
+	urls[3] = qrDecoder.detectAndDecode(qrCodeImg4);
+	
+	//Print URLs found
+	for (int i = 0; i < 4; i++) {
+		if (urls[i].length() > 0) {
+			std::cout << "Data of QR Code #" << i+1 << ": ";
+			std::cout << urls[i] << std::endl;
+		} else {
+			std::cout << "No data for QR Code #" << i << std::endl;
+		}
+	}
+
+	std::cout << "Finished reading QR Codes" << std::endl << std::endl;
 }
