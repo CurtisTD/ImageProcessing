@@ -1,6 +1,5 @@
-2
-0 10 100 300 80 140
-320 80 150 70 80 140
+1
+0 0 1020 765 0 150
 
 /***********************************/
 Parameters for this file are as follows, from top to bottom:

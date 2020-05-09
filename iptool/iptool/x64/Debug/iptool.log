@@ -1,7 +1,6 @@
-﻿  utility.cpp
-c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw3 - due 4-1-20\project3code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(144): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw3 - due 4-1-20\project3code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(557): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
-c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw3 - due 4-1-20\project3code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(783): warning C4244: 'argument': conversion from 'double' to 'const int', possible loss of data
-c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw3 - due 4-1-20\project3code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(797): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw3 - due 4-1-20\project3code_curtisdavis\iptool\iptool\iptools\utility\utility.cpp(798): warning C4244: 'argument': conversion from 'float' to 'const int', possible loss of data
-  iptool.vcxproj -> C:\Users\Curtis\OneDrive - University of South Florida\20SP\CAP 4401 - Image Proc Fund\HW3 - Due 4-1-20\Project3Code_CurtisDavis\iptool\x64\Debug\iptool.exe
+﻿  iptool.cpp
+c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw4 - due 4-22-20\iptool\iptool\iptool.cpp(59): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw4 - due 4-22-20\iptool\iptool\iptool.cpp(79): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw4 - due 4-22-20\iptool\iptool\iptool.cpp(25): warning C4101: 'next_pch': unreferenced local variable
+c:\users\curtis\onedrive - university of south florida\20sp\cap 4401 - image proc fund\hw4 - due 4-22-20\iptool\iptool\iptool.cpp(25): warning C4101: 'pch': unreferenced local variable
+  iptool.vcxproj -> C:\Users\Curtis\OneDrive - University of South Florida\20SP\CAP 4401 - Image Proc Fund\HW4 - Due 4-22-20\iptool\x64\Debug\iptool.exe

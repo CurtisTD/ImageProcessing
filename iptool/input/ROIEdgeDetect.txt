@@ -1,8 +1,7 @@
-2
-0 0 150 150
-160 160 150 100
+1
+0 0 640 480
 
 /***********************************/
 Parameters for this file are as follows, from top to bottom:
-# of lines you want to be read in as 5 separate parameters per line.
-ROI_x-value ROI_y-value Size_x_ROI Size_y_ROI
+# of lines you want to be read in as 4 separate parameters per line.
+ROI_x-value ROI_y-value End_x_ROI End_y_ROI

@@ -1,0 +1,7 @@
+1
+0 0 390 400 100 200
+
+/***********************************/
+Parameters for this file are as follows, from top to bottom:
+# of lines you want to be read in as 5 separate parameters per line.
+ROI_x-value ROI_y-value Size_x_ROI Size_y_ROI

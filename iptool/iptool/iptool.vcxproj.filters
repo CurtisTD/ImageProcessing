@@ -21,9 +21,6 @@
     <ClInclude Include="iptools\utility\utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="iptool.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="iptools\utility\utility.cpp">

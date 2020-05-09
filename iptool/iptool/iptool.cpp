@@ -5,6 +5,11 @@
 #include "./iptools/core.h"
 #include <string.h>
 #include <fstream>
+#include "opencv2/core/core.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include <iostream>
+#include <stdio.h>
 
 using namespace std;
 
@@ -36,12 +41,14 @@ int main (int argc, char** argv)
 		fp >> str;
         if (strncmp(str,"add",3)==0) {
 			/* Add Intensity */
+			std::cout << "Adding algorithm" << std::endl;
 			fp >> str;
         	utility::addGrey(src,tgt,atoi(str));
         }
 
         else if (strncmp(str,"binarize",8)==0) {
 			/* Thresholding */
+			std::cout << "Threshold binarizing" << std::endl;
 			fp >> str;
 			utility::binarize(src,tgt,atoi(str));
 		}
@@ -111,11 +118,83 @@ int main (int argc, char** argv)
 			std::cout << "Edge Detection of Color image algorithm complete." << std::endl;
 		}
 
+
+		/////////////////////////////////
+		//** New project 4 functions **//
+		/////////////////////////////////
+
+		/************************************************************************************************/
+		else if (strncmp(str, "openCVHistoSt", 13) == 0) {
+			/* OpenCV Histogram Stretch */
+			fp >> str;
+			utility::openCVHistogramStretch(src, tgt, outfile);
+			std::cout << "OpenCV Histo Stretch Function Complete" << std::endl;
+		}
+
+		/************************************************************************************************/
+		else if (strncmp(str, "openCVHistoEq", 13) == 0) {
+			/* OpenCV Histogram Equalization */
+			fp >> str;
+			std::string path = "../input/slope.png";
+			
+			// Load image
+			cv::Mat openCVSrc = cv::imread(path, -1);
+			if (openCVSrc.empty()) {
+				cout << "OpenCV Histo Equalize failed to open image" << endl;
+				continue;
+			}
+
+			// Histogram Equalization
+			cv::Mat openCVDst;
+			cv::equalizeHist(openCVSrc, openCVDst);
+			cv::imwrite("../output/slope_OpenCVHistoEqualized.png", openCVDst);
+			std::cout << "OpenCV Histo Equalization Function Complete" << std::endl;
+		}
+
+		/************************************************************************************************/
+		else if (strncmp(str, "openCVEdgeDet", 13) == 0) {
+			/* OpenCV Edge Detection */
+			fp >> str;
+			std::string srcPath = "../input/HorseMid.ppm";
+			std::string dstPath = "../output/HorseMid_.ppm";
+			
+			utility::openCVEdgeDetect(srcPath, dstPath);
+		}
+
+		/************************************************************************************************/
+		else if (strncmp(str, "openCVEquaStr", 13) == 0) {
+			/* Combination */
+			std::cout << "OpenCVEqStr" << std::endl;
+			fp >> str;
+			std::string srcPath = "../input/labInfraredMonitor.ppm";
+			std::string dstPath = "../output/ALabInfraredMonitor_eqStr.ppm";
+			
+			utility::combinedOCVEqualStretch(srcPath, dstPath);
+		}
+
+		/************************************************************************************************/
+		else if (strncmp(str, "qrReaderFunct", 13) == 0) {
+			/* QR Reader */
+			fp >> str;
+			std::string srcPath = "../input/QR/qr1.jpg";
+			std::cout << "Performing QR code readings" << std::endl;
+			utility::qrReaderFunction(srcPath);
+		}
+
+
 		else {
 			printf("No function: %s\n", str);
 			continue;
 		}
        
+		//Only save those with correct image file types
+		std::string outfileString = outfile;
+		if (outfileString.substr(outfileString.find_last_of(".") + 1) != "pgm" ||
+			outfileString.substr(outfileString.find_last_of(".") + 1) != "ppm") {
+				//Do nothing, usually for openCV which writes its images another way
+		} else {
+			
+		}
 		tgt.save(outfile);
 	}
 	//fclose(fp);

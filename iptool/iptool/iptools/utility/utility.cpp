@@ -2,6 +2,10 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/objdetect.hpp"
 
 
 #define MAXRGB 255
@@ -104,9 +108,14 @@ void utility::doubleThreshold(image &src, image &tgt) {
 		for (int i = dtY; i < (dtY + dtSY); i++) {
 			for (int j = dtX; j < (dtX + dtSX); j++) {
 				if (src.getPixel(i, j) >= dtT1 && src.getPixel(i, j) <= dtT2) {
-					tgt.setPixel(i, j, MAXRGB); //Set pixel to white
+					tgt.setPixel(i, j, RED, MAXRGB); //Set pixel to white
+					tgt.setPixel(i, j, GREEN, MAXRGB); //Set pixel to white
+					tgt.setPixel(i, j, BLUE, MAXRGB); //Set pixel to white
+					
 				} else {
-					tgt.setPixel(i, j, MINRGB); //Set pixel to black
+					tgt.setPixel(i, j, RED, MINRGB); //Set pixel to black
+					tgt.setPixel(i, j, GREEN, MINRGB); //Set pixel to black
+					tgt.setPixel(i, j, BLUE, MINRGB); //Set pixel to black
 				}				
 			}
 		}
@@ -429,7 +438,9 @@ void utility::grayHistoStretch(image &src, image &tgt, char outfile[]) {
 				}
 
 				//Set new value
-				tgt.setPixel(x, y, newIntensity); 
+				tgt.setPixel(x, y, RED, newIntensity); 
+				tgt.setPixel(x, y, GREEN, newIntensity); 
+				tgt.setPixel(x, y, BLUE, newIntensity); 
 			}
 		}
 
@@ -927,4 +938,112 @@ void utility::edgeDetectColor(image &src, image &tgt) {
 			}
 		}
 	}
+}
+
+/*****New functions for project 4*****/
+/*--------------------------------------------------------------------*/
+
+void utility::openCVHistogramStretch(image &src, image &tgt, char outfile[]) {
+	// Opens the Optimal Thresh ROI file to get the regions & params
+	
+	utility::grayHistoStretch(src, tgt, outfile); //Directly calls gray histrogram stretch algorithm
+}
+
+void utility::openCVEdgeDetect(std::string srcPath, std::string dstPath) {
+	//Opens the Optimal Thresh ROI file to get the regions & params
+	ifstream sedgROIFile("../input/ROIEdgeDetect.txt");
+	if (!sedgROIFile.is_open()) {
+		fprintf(stderr, "Can't open Edge Detect Color ROI file:\n");
+	}
+	int numROI; //Number of doubleThreshold ROIs	
+	sedgROIFile >> numROI;
+
+	cv::Mat finalSobelImage = cv::imread(srcPath);
+	cv::Mat finalCannyImage = cv::imread(srcPath);
+
+	for (int i = 0; i < numROI; i++) {
+		std::cout << "\nROI num: " << i + 1 << std::endl;
+		int dtX, dtY, dtSX, dtSY; //Parameters of ROIs for intensity operations
+		sedgROIFile >> dtX >> dtY >> dtSX >> dtSY;
+
+		//Read in the image
+		cv::Mat sobel_dstImage;
+		cv::Mat sobelROI_dstImage;
+		cv::Mat canny_dstImage;
+		cv::Mat cannyROI_dstImage;
+		if ( finalSobelImage.empty() || finalCannyImage.empty() ) {
+			cout << "OpenCV Histo Equalize failed to open an image" << endl;
+			return;
+		}
+
+		//Get an ROI for Sobel, filter it, top apply back to src later
+		cv::Mat sobelROI(finalSobelImage, cv::Rect(dtX, dtY, dtSX, dtSY));
+		cv::Sobel(sobelROI, sobelROI_dstImage, -1, 1, 0);
+
+		//Get an ROI for Canny, filter it, top apply back to src later
+		cv::Mat cannyROI(finalCannyImage, cv::Rect(dtX, dtY, dtSX, dtSY));
+		cv::Canny(cannyROI, cannyROI_dstImage, 60, 60 * 3);
+		
+		//Merge ROIs onto source images
+//		cannyROI_dstImage.copyTo( finalCannyImage(cv::Rect(dtX, dtY, dtSX, dtSY)) );
+		sobelROI_dstImage.copyTo( finalSobelImage(cv::Rect(dtX, dtY, dtSX, dtSY)) );
+	}	
+
+	//Show overall final image with all ROIs
+//	cv::imshow("Modified Sobel ROI(s) on Src Image", finalSobelImage);
+//	cv::imshow("Modified Canny ROI(s) on Src Image", finalCannyImage);
+
+	cv::imwrite("../output/zem_canny.png", finalCannyImage);
+	cv::imwrite("../output/zed_sobel.png", finalSobelImage);
+}
+
+void utility::combinedOCVEqualStretch(std::string srcPath, std::string dstPath) {
+
+	//Read in as images
+	cv::Mat srcImage = cv::imread(srcPath, 0);
+
+	cv::Mat eqaulizedImg; //To modify
+	
+	//Equalization
+	cv::equalizeHist(srcImage, eqaulizedImg);
+	
+	//Edge detection
+	cv::Mat sobelEqualized, cannyEqualized;
+	cv::Sobel(eqaulizedImg, sobelEqualized, -1, 1, 0);
+	cv::Canny(eqaulizedImg, cannyEqualized, 60, 60 * 3);
+
+	//Writes the images to output
+	cv::imwrite("../output/baboon_ocvEqualizedSobel.png", sobelEqualized);
+	cv::imwrite("../output/baboon_ocvEqualizedCanny.png", cannyEqualized);
+}
+
+void utility::qrReaderFunction(std::string srcPath) {
+	std::cout << "Performing QR code readings" << std::endl;
+
+	cv::Mat qrCodeImg1 = cv::imread("../input/QR/qr1.png");
+	cv::Mat qrCodeImg2 = cv::imread("../input/QR/qr2.jpg");
+	cv::Mat qrCodeImg3 = cv::imread("../input/QR/qr3.jpg");
+	cv::Mat qrCodeImg4 = cv::imread("../input/QR/qr4.jpg");
+
+	//Make a QR decoder
+	cv::QRCodeDetector qrDecoder = cv::QRCodeDetector::QRCodeDetector();
+
+	//Get URL
+	std::string urls[4];
+	urls[0] = qrDecoder.detectAndDecode(qrCodeImg1);
+	urls[1] = qrDecoder.detectAndDecode(qrCodeImg2);
+	urls[2] = qrDecoder.detectAndDecode(qrCodeImg3);
+	urls[3] = qrDecoder.detectAndDecode(qrCodeImg4);
+	
+	//Print URLs found
+	for (int i = 0; i < 4; i++) {
+		if (urls[i].length() > 0) {
+			std::cout << "Data of QR Code #" << i+1 << ": ";
+			std::cout << urls[i] << std::endl;
+		} else {
+			std::cout << "No data for QR Code #" << i << std::endl;
+		}
+	}
+
+	std::cout << "Finished reading QR Codes" << std::endl << std::endl;
 }

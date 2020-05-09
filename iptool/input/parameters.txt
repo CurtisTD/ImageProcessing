@@ -1,3 +1,2 @@
-2
-../input/wheelg.ppm ../output/wheelg_EdgeDetectColor.ppm sobelEdgeGray 0
-../input/frog.ppm ../output/frog_EdgeDetectColor.ppm edgeDetectColor 0
+1
+../input/HorseMid.ppm ../output/HorseMid_.ppm openCVEdgeDet 0

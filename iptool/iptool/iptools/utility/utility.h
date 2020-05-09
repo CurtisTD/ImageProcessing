@@ -21,9 +21,16 @@ class utility
 		static void grayHistoStretch(image &src, image &tgt, char outfile[]);
 		static void optimalThreshGray(image &src, image &tgt);
 		static void optimalThresh_HistoStretch(image &src, image &tgt);
-
 		static void sobelEdgeDetectGray(image &src, image &tgt, int threshold = 25);
 		static void edgeDetectColor(image &src, image &tgt);
+
+		//Project 4 functions
+		static void openCVHistogramStretch(image &src, image &tgt, char outfile[]);
+		static void openCVEdgeDetect(std::string srcPath, std::string dstPath);
+		static void combinedOCVEqualStretch(std::string srcPath, std::string dstPath);
+		//Extra Credit QR Scanner
+		static void qrReaderFunction(std::string srcPath);
+
 };
 
 #endif
